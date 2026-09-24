@@ -38,3 +38,8 @@ lib-slu-only
 library/
 .classpath
 .project
+
+# Team Chat test stage
+config/configuration.test.xml
+metl-test.h2*
+.sbt-test.sh

@@ -1577,6 +1577,10 @@ class MeTLActor extends StronglyTypedJsonActor with Logger with JArgUtils with C
           })
         }
       }
+      case s:MeTLChatMessage if ChatRules.rejectionReason(s.content).isDefined => {
+        // Team Chat v1: server-side validation (1 to 2,000 characters)
+        warn("sendStanzaToServer rejected chatMessage from %s: %s".format(s.author, ChatRules.rejectionReason(s.content).getOrElse("")))
+      }
       case s:MeTLChatMessage => {
         if (s.author == username) {
           currentConversation.map(cc => {
