@@ -80,7 +80,7 @@ class Metl extends Logger with ReadOnlyMetlInterface {
 
   lazy val serverConfig = ServerConfiguration.default
   protected def generateName(showDeleted:Boolean = false):String = {
-    var name = "USERNAME:%s".format(Globals.currentUser.is)
+    var name = "USERNAME:%s".format(encodeUsername(Globals.currentUser.is))
     S.param("conversationJid").foreach(cj => {
       try {
         name += "_CONVERSATION:%s".format(cj.toInt)
@@ -206,8 +206,9 @@ class Metl extends Logger with ReadOnlyMetlInterface {
       }
     })
   }
+  def encodeUsername(username:String):String = urlEncode(username).replace("_","%5F")
   def getUserFromName(in:String):Option[String] = {
-    in.split("_").map(_.split(":")).find(_(0) == "USERNAME").map(_.drop(1).mkString(":"))
+    in.split("_").map(_.split(":")).find(_(0) == "USERNAME").map(_.drop(1).mkString(":")).map(u => urlDecode(u))
   }
   def specificSimple(in:NodeSeq):NodeSeq = {
     val name = generateName()
