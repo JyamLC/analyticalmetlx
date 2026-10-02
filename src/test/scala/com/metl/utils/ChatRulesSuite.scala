@@ -29,4 +29,24 @@ class ChatRulesSuite extends FunSuite {
     assert(ChatRules.isValid("  " + ("a" * 2000) + "  "))
     assert(ChatRules.clean("  hi  ") === "hi")
   }
+
+  test("v2: text and file messages are the only content types accepted") {
+    assert(ChatRules.rejectionReason("text", "hello @Ana") === None)
+    assert(ChatRules.rejectionReason("html", "<b>hi</b>").isDefined)
+    assert(ChatRules.rejectionReason(null, "hi").isDefined)
+  }
+
+  test("v2: a shared file must have an allowed extension") {
+    assert(ChatRules.rejectionReason("file", """{"name":"plan.pdf","size":1200,"url":"abc"}""") === None)
+    assert(ChatRules.rejectionReason("file", """{"name":"Photo.JPG","size":1200,"url":"abc"}""") === None)
+    assert(ChatRules.rejectionReason("file", """{"name":"virus.exe","size":1200,"url":"abc"}""").isDefined)
+    assert(ChatRules.rejectionReason("file", """{"size":1200}""").isDefined)
+  }
+
+  test("v2: file extension helper") {
+    assert(ChatRules.fileExtension("a.b.PNG") === "png")
+    assert(ChatRules.fileExtension("noextension") === "")
+    assert(ChatRules.isAllowedFile("notes.txt"))
+    assert(!ChatRules.isAllowedFile("script.sh"))
+  }
 }

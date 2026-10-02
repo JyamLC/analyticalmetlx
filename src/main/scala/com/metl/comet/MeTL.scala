@@ -1222,7 +1222,9 @@ class MeTLActor extends StronglyTypedJsonActor with Logger with JArgUtils with C
       partialUpdate(refreshClientSideStateJs(true))
     }
     case HealthyWelcomeFromRoom => {}
-    case cp@ConversationParticipation(jid,currentMembers,possibleMembers) if shouldModifyConversation() => {
+    // Team Chat v2 (DEF-05): every member receives the participation list so the chat
+    // presence list works for everyone, not only for the conversation owner.
+    case cp@ConversationParticipation(jid,currentMembers,possibleMembers) => {
       trace("CONVERSATION PARTICIPATION: %s".format(cp))
       currentConversation.foreach(cc => {
         if( cc.jid.toString.equals(jid)) {
@@ -1234,7 +1236,6 @@ class MeTLActor extends StronglyTypedJsonActor with Logger with JArgUtils with C
         }
       })
     }
-    case ConversationParticipation(jid,currentMembers,possibleMembers) => {}
     case other => warn("MeTLActor %s received unknown message: %s".format(name,other))
   }
   override def autoIncludeJsonCode = true
@@ -1577,9 +1578,9 @@ class MeTLActor extends StronglyTypedJsonActor with Logger with JArgUtils with C
           })
         }
       }
-      case s:MeTLChatMessage if ChatRules.rejectionReason(s.content).isDefined => {
-        // Team Chat v1: server-side validation (1 to 2,000 characters)
-        warn("sendStanzaToServer rejected chatMessage from %s: %s".format(s.author, ChatRules.rejectionReason(s.content).getOrElse("")))
+      case s:MeTLChatMessage if ChatRules.rejectionReason(s.contentType, s.content).isDefined => {
+        // Team Chat: server-side validation (v1: 1 to 2,000 characters; v2: only text/file, allowed file types)
+        warn("sendStanzaToServer rejected chatMessage from %s: %s".format(s.author, ChatRules.rejectionReason(s.contentType, s.content).getOrElse("")))
       }
       case s:MeTLChatMessage => {
         if (s.author == username) {
