@@ -58,5 +58,68 @@ test("presence with no data still shows me as online", function(){
     assert.strictEqual(p[0].status, "online");
 });
 
+console.log("\nTeamChatRules v2");
+
+test("@mention of a full name with spaces is found and highlighted", function(){
+    var names = ["Jose Lebron Cuadra", "Jose Cuadra Lebron", "Ana"];
+    var segs = Rules.splitMentions("Hi @Jose Cuadra Lebron, can you check this?", names);
+    assert.deepStrictEqual(segs.map(function(s){ return s.mention; }), [null, "Jose Cuadra Lebron", null]);
+    assert.deepStrictEqual(Rules.findMentions("@ana and @Jose Lebron Cuadra", names), ["Ana", "Jose Lebron Cuadra"]);
+});
+test("@mention needs the whole name and is not found inside an email address", function(){
+    var names = ["Jose Lebron Cuadra", "Ana"];
+    assert.deepStrictEqual(Rules.findMentions("@Jose can you look", names), []);
+    assert.deepStrictEqual(Rules.findMentions("mail me at x@anabelle.com", names), []);
+    assert.deepStrictEqual(Rules.findMentions("mail me at x@Ana now", names), []);
+    assert.strictEqual(Rules.mentionsMe("thanks @Ana!", "Ana"), true);
+    assert.strictEqual(Rules.mentionsMe("thanks Ana", "Ana"), false);
+});
+test("mention autocomplete finds the partial name after @", function(){
+    assert.strictEqual(Rules.mentionQuery("hello @Jo"), "Jo");
+    assert.strictEqual(Rules.mentionQuery("hello @"), "");
+    assert.strictEqual(Rules.mentionQuery("no mention here"), null);
+    assert.strictEqual(Rules.mentionQuery("email a@b"), null);
+    assert.deepStrictEqual(Rules.suggestions("jo", ["Jose Lebron Cuadra","Ana","Jose Cuadra Lebron"], "Jose Lebron Cuadra"), ["Jose Cuadra Lebron"]);
+});
+test("reply context links a message to its thread", function(){
+    var root = Rules.makeMessage("Ana", "1001", "root", 1700000000000);
+    var reply = Rules.makeMessage("Jose", "1001", "reply", 1700000000500, {context:Rules.threadContext(root.identity)});
+    var ctx = Rules.parseContext(reply.context);
+    assert.strictEqual(ctx.kind, "thread");
+    assert.strictEqual(ctx.root, root.identity);
+    assert.strictEqual(Rules.parseContext("1001").kind, "none");
+});
+test("element comment context keeps type, position and label within 128 characters", function(){
+    var longLabel = new Array(300).join("x");
+    var c = Rules.elementContext("multiWordTexts", "Jose_some_very_long_identity_" + longLabel, [10.4, 20, 110, 70], "Hello|world " + longLabel);
+    assert.ok(c.length <= 128);
+    var ctx = Rules.parseContext(c);
+    assert.strictEqual(ctx.kind, "element");
+    assert.strictEqual(ctx.type, "multiWordTexts");
+    assert.deepStrictEqual(ctx.box, [10, 20, 100, 50]);
+    assert.ok(ctx.label.indexOf("Hello world") === 0);
+    assert.strictEqual(Rules.elementTypeName(ctx.type), "text");
+});
+test("file sharing allows listed types up to 5 MB", function(){
+    assert.strictEqual(Rules.validateFile("plan.pdf", 1024).ok, true);
+    assert.strictEqual(Rules.validateFile("Photo.JPG", 2 * 1048576).ok, true);
+    assert.strictEqual(Rules.validateFile("virus.exe", 1024).ok, false);
+    assert.strictEqual(Rules.validateFile("big.png", 6 * 1048576).ok, false);
+    assert.strictEqual(Rules.validateFile("empty.txt", 0).ok, false);
+    assert.strictEqual(Rules.isImage("a.gif"), true);
+    assert.strictEqual(Rules.isImage("a.pdf"), false);
+});
+test("file message content round-trips and stays under 2,000 characters", function(){
+    var content = Rules.fileContent("notes.txt", 2048, "1000/notes.txt/123");
+    var f = Rules.parseFile(content);
+    assert.strictEqual(f.name, "notes.txt");
+    assert.strictEqual(f.url, "1000/notes.txt/123");
+    assert.ok(Rules.validate(content).ok);
+    assert.strictEqual(Rules.parseFile("not json"), null);
+    var m = Rules.makeMessage("Ana", "1001", content, 1, {contentType:"file"});
+    assert.strictEqual(m.contentType, "file");
+    assert.strictEqual(Rules.formatSize(2048), "2 KB");
+});
+
 console.log("\n" + passed + " passed, " + failed + " failed");
 process.exit(failed ? 1 : 0);
