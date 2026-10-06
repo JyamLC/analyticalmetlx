@@ -43,3 +43,7 @@ library/
 config/configuration.test.xml
 metl-test.h2*
 .sbt-test.sh
+config/configuration.stage.xml
+.sbt-stage.sh
+config/configuration.stage.xml
+.sbt-stage.sh
