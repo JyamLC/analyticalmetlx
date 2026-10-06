@@ -274,7 +274,8 @@ var Conversations = (function(){
         var lowerUsername = username.toLowerCase().trim();
         var q = getQueryFunc().toLowerCase().trim();
 				var cfr = details.foreignRelationship;
-        return ((q == author || title.indexOf(q) > -1) && (subject != "deleted" || (includeDeleted && author == lowerUsername)) && (author == lowerUsername || _.some(userGroups,function(g){
+                // DEF-08: Updated so "unrestricted" conversations are open to everyone; Same rule as Conversation.shouldDisplayFor on the server.
+        return ((q == author || title.indexOf(q) > -1) && (subject != "deleted" || (includeDeleted && author == lowerUsername)) && (author == lowerUsername || subject == "unrestricted" || _.some(userGroups,function(g){
 						var fr = g.foreignRelationship;
             var key = g.key ? g.key : g.ouType;
             var name = g.name ? g.name : g.value;
