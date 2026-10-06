@@ -66,3 +66,8 @@ The script stops if any automated test fails (gate: tests must pass before promo
 | DEF-05 | v1 Test | Only the owner sees who is online | Comet only forwarded attendance `if shouldModifyConversation()` | Fixed in v2 (sent to every member) |
 | DEF-06 | v1 Test | A user stays Online about 2 minutes after leaving | `metlActorLifespan` default is 2 minutes | Fixed in v2 (45 seconds on the Test stage) |
 | DEF-07 | v2 Test | After sharing a file, the chat panel grows past the bottom of the window and the message box, 📌, 📎 and Send buttons are hidden, so nothing else can be sent or attached | The panel had no height limit, so each new message made the whole panel taller instead of scrolling the list | Fixed in v2 (panel sized to the window; only the message list scrolls; opens at the newest message) |
+| DEF-08 | v2 Test | A second user cannot find the owner's conversation in the conversation list, only through the owner's link | The list check in `conversationSearch.js` was missing the "unrestricted" case that the server already allows | Fixed in v3 (added to `conversationSearch.js` and `min/conversationSearch.js`) |
+
+## Version 3 (final) manual checklist
+17. As a second user, search for the owner's name/board title: the owner's "unrestricted" board is listed and opens without the owner's link (DEF-08).
+18. Owner changes the board's Sharing to a group the second user is not in: the second user no sees it.
