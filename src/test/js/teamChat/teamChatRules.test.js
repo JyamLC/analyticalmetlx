@@ -121,5 +121,34 @@ test("file message content round-trips and stays under 2,000 characters", functi
     assert.strictEqual(Rules.formatSize(2048), "2 KB");
 });
 
+console.log("\nTeamChatRules v3");
+
+test("CSV cells with commas, quotes or line breaks are quoted", function(){
+    assert.strictEqual(Rules.csvCell("hello"), "hello");
+    assert.strictEqual(Rules.csvCell("a,b"), '"a,b"');
+    assert.strictEqual(Rules.csvCell('say "hi"'), '"say ""hi"""');
+    assert.strictEqual(Rules.csvCell("line1\nline2"), '"line1\nline2"');
+    assert.strictEqual(Rules.csvCell(undefined), "");
+});
+test("chat export lists messages oldest first with a header row", function(){
+    var later = Rules.makeMessage("Jose Cuadra Lebron", "1001", "second", Date.UTC(2026, 9, 6, 19, 5));
+    var first = Rules.makeMessage("Jose Lebron Cuadra", "1001", "first, hello", Date.UTC(2026, 9, 6, 19, 2));
+    var lines = Rules.toCsv([later, first]).split("\r\n");
+    assert.strictEqual(lines.length, 3);
+    assert.strictEqual(lines[0], "Time,Author,Type,Message,Where");
+    assert.strictEqual(lines[1], '2026-10-06T19:02:00.000Z,Jose Lebron Cuadra,text,"first, hello",');
+    assert.strictEqual(lines[2], "2026-10-06T19:05:00.000Z,Jose Cuadra Lebron,text,second,");
+});
+test("chat export shows file names, replies and board comments", function(){
+    var file = Rules.makeMessage("Jose Cuadra Lebron", "1001", Rules.fileContent("plan.pdf", 2048, "1000/plan.pdf/1"), 1, {contentType:"file"});
+    var reply = Rules.makeMessage("Jose Lebron Cuadra", "1001", "ok", 2, {context:Rules.threadContext("Jose Cuadra Lebron_1001_1")});
+    var pin = Rules.makeMessage("Jose Cuadra Lebron", "1001", "look here", 3, {context:Rules.elementContext("inks", "ink1", [0,0,10,10], "")});
+    var lines = Rules.toCsv([pin, reply, file]).split("\r\n");
+    assert.ok(/,Jose Cuadra Lebron,file,plan\.pdf,$/.test(lines[1]));
+    assert.ok(/,Jose Lebron Cuadra,text,ok,reply$/.test(lines[2]));
+    assert.ok(/,Jose Cuadra Lebron,text,look here,on drawing$/.test(lines[3]));
+    assert.strictEqual(Rules.toCsv([]), "Time,Author,Type,Message,Where");
+});
+
 console.log("\n" + passed + " passed, " + failed + " failed");
 process.exit(failed ? 1 : 0);

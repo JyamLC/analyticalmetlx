@@ -189,6 +189,28 @@ var TeamChatRules = (function(){
             return n && n !== me && n.toLowerCase().indexOf(q) === 0;
         }).sort().slice(0, limit || 5);
     };
+    /* ---------- chat export (S8) ---------- */
+    // one CSV cell: wrap in quotes when it has a comma, quote or line break, and double any quotes
+    var csvCell = function(value){
+        var s = (value === undefined || value === null) ? "" : String(value);
+        if (/[",\r\n]/.test(s)) { s = '"' + s.replace(/"/g, '""') + '"'; }
+        return s;
+    };
+    // messages -> CSV text, oldest first: Time, Author, Type, Message, Where
+    var toCsv = function(stanzas){
+        var rows = [["Time", "Author", "Type", "Message", "Where"]];
+        (stanzas || []).slice().sort(function(a, b){ return a.timestamp - b.timestamp; }).forEach(function(m){
+            var text = m.content;
+            if (m.contentType == "file"){
+                var f = parseFile(m.content);
+                text = f ? f.name : m.content;
+            }
+            var ctx = parseContext(m.context);
+            var where = ctx.kind == "thread" ? "reply" : (ctx.kind == "element" ? "on " + elementTypeName(ctx.type) : "");
+            rows.push([new Date(m.timestamp).toISOString(), m.author, m.contentType || "text", text, where]);
+        });
+        return rows.map(function(r){ return r.map(csvCell).join(","); }).join("\r\n");
+    };
 
     return {
         MAX_LENGTH:MAX_LENGTH,
@@ -213,7 +235,9 @@ var TeamChatRules = (function(){
         findMentions:findMentions,
         mentionsMe:mentionsMe,
         mentionQuery:mentionQuery,
-        suggestions:suggestions
+        suggestions:suggestions,
+        csvCell:csvCell,
+        toCsv:toCsv
     };
 })();
 
@@ -237,7 +261,7 @@ var TeamChat = (function(){
     var attachElement = null;   // {type, identity, bounds, label}
     var suggestIndex = 0;
     var panel, list, box, counter, errorLine, sendButton, toggleButton, badge, presenceList,
-        contextBar, pinButton, fileButton, fileInput, suggestBox, toast;
+        contextBar, pinButton, fileButton, exportButton, fileInput, suggestBox, toast;
 
     var css =
         "#teamChatColumn{width:300px;flex-shrink:0;display:flex;flex-direction:column;background:#f7f9fc;border-left:2px solid #1F3864;font-family:inherit;position:relative;align-self:flex-start;overflow:hidden;box-sizing:border-box;}" +
@@ -479,6 +503,18 @@ var TeamChat = (function(){
             }
         }
     };
+        // S8: save every message in this conversation as a CSV file
+    var exportChat = function(){
+        var all = Object.keys(messages).map(function(id){ return messages[id]; });
+        var blob = new Blob(["﻿" + R.toCsv(all)], {type:"text/csv;charset=utf-8"});
+        var link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "team-chat-" + (conversationJid() || "export") + ".csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(function(){ URL.revokeObjectURL(link.href); }, 1000);
+    };
 
     var clearMessages = function(){
         seen = {}; messages = {}; pendingReplies = {};
@@ -683,10 +719,11 @@ var TeamChat = (function(){
         pinButton = $("<button/>",{"class":"tool", id:"teamChatPin", html:"&#128204;", title:"Comment on the selected whiteboard item"});
         fileButton = $("<button/>",{"class":"tool", id:"teamChatFile", html:"&#128206;", title:"Share a file or image (max 5 MB)"});
         fileInput = $("<input/>",{type:"file", id:"teamChatFileInput", accept:R.ALLOWED_EXT.map(function(e){ return "." + e; }).join(",")}).hide();
+        exportButton = $("<button/>",{"class":"tool", id:"teamChatExport", html:"&#11015;", title:"Download the chat as a CSV file"});
         sendButton = $("<button/>",{id:"teamChatSend", text:"Send"});
         errorLine = $("<div/>",{"class":"teamChatError", id:"teamChatError"});
         composer.append(suggestBox).append(contextBar).append(box)
-            .append($("<div/>",{"class":"row"}).append(counter).append(pinButton).append(fileButton).append(sendButton))
+            .append($("<div/>",{"class":"row"}).append(counter).append(pinButton).append(fileButton).append(exportButton).append(sendButton))
             .append(fileInput).append(errorLine);
         body.append(presenceList).append(list).append(composer);
         panel.append(header).append(toast).append(body);
@@ -705,6 +742,7 @@ var TeamChat = (function(){
         sendButton.on("click", send);
         pinButton.on("click", togglePin);
         fileButton.on("click", function(){ fileInput.val(""); fileInput.click(); });
+        exportButton.on("click", exportChat);
         fileInput.on("change", function(){ if (this.files && this.files[0]) { uploadFile(this.files[0]); } });
         box.on("input click", function(){ updateCounter(); showSuggestions(); });
         box.on("blur", function(){ setTimeout(hideSuggestions, 150); });
